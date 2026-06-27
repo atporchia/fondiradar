@@ -67,60 +67,11 @@ export async function upsertProjects(
 
 /**
  * Rebuild the comuni aggregates table from the projects table.
- * Called after each successful ingest run.
+ * Delegates to a Postgres function so the full 300k+ row dataset is
+ * aggregated in-DB without hitting the JS client's default 1k row limit.
+ * Requires migration 003_rebuild_comuni_fn.sql to be applied first.
  */
 export async function rebuildComuniAggregates(): Promise<void> {
-  const now = new Date().toISOString()
-
-  // Pull distinct comuni with their aggregates
-  const { data, error } = await supabaseAdmin
-    .from('projects')
-    .select('comune, province, region, amount_total')
-    .not('comune', 'is', null)
-
-  if (error) throw new Error(`Failed to read projects for aggregation: ${error.message}`)
-  if (!data) return
-
-  // Group in memory
-  const map = new Map<
-    string,
-    { province: string | null; region: string | null; total: number; count: number }
-  >()
-
-  for (const row of data) {
-    const key = (row.comune as string).toUpperCase().trim()
-    const existing = map.get(key)
-    const amt = (row.amount_total as number | null) ?? 0
-    if (existing) {
-      existing.total += amt
-      existing.count++
-    } else {
-      map.set(key, {
-        province: row.province as string | null,
-        region: row.region as string | null,
-        total: amt,
-        count: 1,
-      })
-    }
-  }
-
-  const rows = Array.from(map.entries()).map(([nome, stats]) => ({
-    nome,
-    province:                stats.province,
-    region:                  stats.region,
-    total_projects:          stats.count,
-    total_funding:           stats.total,
-    avg_project_value:       stats.count > 0 ? stats.total / stats.count : 0,
-    last_normalized_refresh: now,
-    last_watchdog_check:     now,
-  }))
-
-  // Upsert in batches
-  const batchSize = 500
-  for (let i = 0; i < rows.length; i += batchSize) {
-    const { error: upsertError } = await supabaseAdmin
-      .from('comuni')
-      .upsert(rows.slice(i, i + batchSize), { onConflict: 'nome' })
-    if (upsertError) throw new Error(`comuni upsert error: ${upsertError.message}`)
-  }
+  const { error } = await supabaseAdmin.rpc('rebuild_comuni_aggregates')
+  if (error) throw new Error(`comuni rebuild failed: ${error.message}`)
 }

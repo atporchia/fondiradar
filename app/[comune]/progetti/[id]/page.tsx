@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase'
 import { toTitleCase, formatEur, formatDate } from '@/lib/format'
 import FreshnessBadge from '@/app/components/FreshnessBadge'
+import { generateProjectExplanation } from '@/lib/ingest/ai'
 
 export default async function ProgettoDetailPage({
   params,
@@ -20,6 +21,25 @@ export default async function ProgettoDetailPage({
     .single()
 
   if (error || !project) notFound()
+
+  // Lazy AI generation: generate on first visit, then serve from DB forever
+  if (!project.ai_explanation && process.env.GOOGLE_AI_API_KEY) {
+    try {
+      const ai = await generateProjectExplanation(project)
+      await supabaseAdmin
+        .from('projects')
+        .update({
+          ai_explanation: ai.explanation,
+          ai_suggested_questions: ai.questions,
+          ai_generated_at: new Date().toISOString(),
+        })
+        .eq('id', project.id)
+      project.ai_explanation = ai.explanation
+      project.ai_suggested_questions = ai.questions
+    } catch {
+      // AI generation failed silently — page still renders without explanation
+    }
+  }
 
   const { data: source } = await supabaseAdmin
     .from('source_metadata')
