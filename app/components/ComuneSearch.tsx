@@ -12,12 +12,28 @@ type ComuneResult = {
   total_funding: number
 }
 
+function Spinner({ className }: { className?: string }) {
+  return (
+    <svg
+      className={`animate-spin ${className ?? 'h-5 w-5'}`}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  )
+}
+
 export default function ComuneSearch() {
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ComuneResult[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [navigating, setNavigating] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -58,7 +74,8 @@ export default function ComuneSearch() {
 
   function navigate(nome: string) {
     setOpen(false)
-    setQuery('')
+    setQuery(toTitleCase(nome))
+    setNavigating(true)
     router.push(`/${encodeURIComponent(nome)}`)
   }
 
@@ -71,6 +88,14 @@ export default function ComuneSearch() {
   }
 
   return (
+    <>
+      {navigating && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
+          <Spinner className="h-10 w-10 text-emerald-600 mb-4" />
+          <p className="text-sm font-medium text-emerald-700">Caricamento in corso…</p>
+        </div>
+      )}
+
     <div ref={containerRef} className="relative w-full max-w-md">
       <form
         onSubmit={(e) => {
@@ -92,9 +117,9 @@ export default function ComuneSearch() {
         <button
           type="submit"
           disabled={loading || results.length === 0}
-          className="rounded-lg bg-emerald-600 px-5 py-3 text-sm font-medium text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="rounded-lg bg-emerald-600 px-5 py-3 text-sm font-medium text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          {loading ? '…' : 'Cerca'}
+          {loading ? <><Spinner className="h-4 w-4" /> Cerca</> : 'Cerca'}
         </button>
       </form>
 
@@ -132,5 +157,6 @@ export default function ComuneSearch() {
         </div>
       )}
     </div>
+    </>
   )
 }
