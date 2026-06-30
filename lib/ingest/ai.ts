@@ -69,6 +69,9 @@ Rispondi SOLO con questo JSON:
 export interface CallAI {
   explanation: string
   tips: string[]
+  amountMin: number | null
+  amountMax: number | null
+  eligibility: string[]
 }
 
 export async function generateCallExplanation(call: {
@@ -91,7 +94,10 @@ Categorie: ${call.categories?.join(', ') || 'non specificate'}
 Rispondi SOLO con questo JSON:
 {
   "explanation": "Spiegazione in italiano semplice: cosa finanzia questo bando, chi può fare domanda (persona fisica, impresa, startup, agricoltore...), a cosa serve il contributo. Max 150 parole.",
-  "tips": ["Primo passo concreto per iniziare a candidarsi", "Secondo consiglio pratico", "Terzo consiglio utile (es. documenti necessari, scadenze da tenere d'occhio, enti a cui rivolgersi)"]
+  "tips": ["Primo passo concreto per iniziare a candidarsi", "Secondo consiglio pratico", "Terzo consiglio utile (es. documenti necessari, scadenze da tenere d'occhio, enti a cui rivolgersi)"],
+  "amountMin": "Importo minimo in euro che un singolo candidato può ricevere, come numero senza simboli (es. 10000). Se la descrizione non lo specifica, stima un valore plausibile in base al tipo di bando, oppure usa null se è impossibile stimarlo.",
+  "amountMax": "Importo massimo in euro che un singolo candidato può ricevere, come numero senza simboli (es. 75000). Stessa logica di amountMin.",
+  "eligibility": ["Criterio di ammissibilità 1 (es. 'Under 41 anni')", "Criterio 2 (es. 'Imprese con sede in una delle regioni del Sud Italia')", "Criterio 3 (es. 'Startup costituite da meno di 5 anni')"]
 }`
 
   const res = await getClient().chat.completions.create({
@@ -100,12 +106,22 @@ Rispondi SOLO con questo JSON:
     response_format: { type: 'json_object' },
   })
 
-  const parsed = JSON.parse(res.choices[0].message.content ?? '{}') as CallAI
+  const parsed = JSON.parse(res.choices[0].message.content ?? '{}') as Record<string, unknown>
+
+  const toAmount = (v: unknown): number | null => {
+    const n = typeof v === 'number' ? v : parseFloat(String(v))
+    return isNaN(n) ? null : n
+  }
 
   return {
     explanation: String(parsed.explanation ?? ''),
     tips: Array.isArray(parsed.tips)
       ? parsed.tips.slice(0, 3).map(String)
+      : [],
+    amountMin: toAmount(parsed.amountMin),
+    amountMax: toAmount(parsed.amountMax),
+    eligibility: Array.isArray(parsed.eligibility)
+      ? parsed.eligibility.slice(0, 5).map(String)
       : [],
   }
 }

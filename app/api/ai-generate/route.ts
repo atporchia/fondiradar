@@ -85,6 +85,9 @@ export async function POST(request: NextRequest) {
         UPDATE funding_calls SET
           ai_explanation  = ${ai.explanation},
           ai_tips         = ${ai.tips},
+          amount_min      = ${ai.amountMin},
+          amount_max      = ${ai.amountMax},
+          eligibility     = ${ai.eligibility},
           ai_generated_at = NOW()
         WHERE id = ${call.id}
       `

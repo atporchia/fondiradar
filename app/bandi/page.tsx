@@ -55,7 +55,7 @@ export default async function BandiPage({
   // When a region is selected, show calls for that region AND calls with no region restriction
   const [calls, [{ count }]] = await Promise.all([
     sql`
-      SELECT id, title, program, categories, regions, deadline, budget_total, description
+      SELECT id, title, program, categories, regions, deadline, budget_total, description, amount_min, amount_max
       FROM funding_calls
       WHERE status = 'open'
         ${q       ? sql`AND (title ILIKE ${'%' + q + '%'} OR description ILIKE ${'%' + q + '%'})` : sql``}
@@ -203,6 +203,15 @@ export default async function BandiPage({
                     <DeadlineBadge deadline={c.deadline} />
                   ) : (
                     <span className="text-xs text-gray-400">Aperto</span>
+                  )}
+                  {(c.amount_min || c.amount_max) && (
+                    <p className="mt-1 text-xs font-medium text-emerald-600">
+                      {c.amount_min && c.amount_max
+                        ? `${formatEur(c.amount_min)} – ${formatEur(c.amount_max)}`
+                        : c.amount_max
+                          ? `Fino a ${formatEur(c.amount_max)}`
+                          : `Da ${formatEur(c.amount_min)}`}
+                    </p>
                   )}
                   {c.budget_total && (
                     <p className="mt-1 text-xs text-gray-400">{formatEur(c.budget_total)} totale</p>

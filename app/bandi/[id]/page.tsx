@@ -17,6 +17,15 @@ export default async function BandoDetailPage({
     ? Math.ceil((new Date(call.deadline).getTime() - Date.now()) / 86_400_000)
     : null
 
+  const amountRange =
+    call.amount_min && call.amount_max
+      ? `${formatEur(call.amount_min)} – ${formatEur(call.amount_max)}`
+      : call.amount_max
+        ? `Fino a ${formatEur(call.amount_max)}`
+        : call.amount_min
+          ? `Da ${formatEur(call.amount_min)}`
+          : null
+
   return (
     <main className="max-w-3xl mx-auto px-6 py-12">
       {/* Breadcrumb */}
@@ -70,9 +79,25 @@ export default async function BandoDetailPage({
           label="Budget totale"
           value={call.budget_total ? formatEur(call.budget_total) : 'Non specificato'}
         />
+        <InfoBox label="Importo per candidato" value={amountRange} />
         <InfoBox label="Stato" value={call.status === 'open' ? '✓ Aperto' : call.status} />
         <InfoBox label="Programma" value={call.program} />
       </div>
+
+      {/* Eligibility criteria */}
+      {call.eligibility && call.eligibility.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-gray-900 mb-2">Chi può candidarsi</h2>
+          <ul className="space-y-1.5">
+            {call.eligibility.map((item: string, i: number) => (
+              <li key={i} className="flex gap-2 text-sm text-gray-600">
+                <span className="shrink-0 text-emerald-500">✓</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Description */}
       {call.description && (
