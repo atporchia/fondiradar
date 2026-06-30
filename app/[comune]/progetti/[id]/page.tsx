@@ -80,7 +80,7 @@ export default async function ProgettoDetailPage({
       </div>
 
       {/* Key stats */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
         <InfoBox label="Importo totale" value={formatEur(project.amount_total)} large />
         <InfoBox label="Importo pubblico" value={formatEur(project.amount_public)} />
         <InfoBox label="Comune" value={toTitleCase(project.comune ?? comuneName)} />

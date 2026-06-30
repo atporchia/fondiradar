@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MyComune — I soldi pubblici del tuo Comune, spiegati in modo semplice",
+  title: "MyComune — Fondi PNRR e bandi aperti per ogni Comune italiano",
   description:
-    "Cerca i progetti PNRR del tuo Comune, capiscili in italiano semplice e ricevi aggiornamenti settimanali.",
+    "Traccia i fondi PNRR del tuo Comune e scopri i bandi europei e italiani a cui puoi candidarti. Dati ufficiali, spiegati in italiano semplice.",
 };
 
 export default function RootLayout({

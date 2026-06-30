@@ -3,6 +3,7 @@ import Link from 'next/link'
 import sql from '@/lib/db'
 import { toTitleCase, formatEur, formatDate } from '@/lib/format'
 import FreshnessBadge from '@/app/components/FreshnessBadge'
+import { generateComuneSummary } from '@/lib/ingest/ai'
 
 export default async function ComunePage({
   params,
@@ -30,6 +31,28 @@ export default async function ComunePage({
   ])
 
   if (!comune) notFound()
+
+  if (!comune.ai_summary && process.env.GOOGLE_AI_API_KEY) {
+    try {
+      const ai = await generateComuneSummary({
+        nome: comune.nome,
+        province: comune.province,
+        region: comune.region,
+        total_projects: comune.total_projects,
+        total_funding: Number(comune.total_funding),
+        avg_project_value: Number(comune.avg_project_value),
+      })
+      await sql`
+        UPDATE comuni SET
+          ai_summary              = ${ai.summary},
+          ai_summary_generated_at = NOW()
+        WHERE nome = ${comune.nome}
+      `
+      comune.ai_summary = ai.summary
+    } catch {
+      // silently skip — page renders without AI section
+    }
+  }
 
   if (comune.total_projects === 0) {
     return (
@@ -110,7 +133,7 @@ export default async function ComunePage({
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <StatCard label="Progetti PNRR" value={comune.total_projects.toLocaleString('it-IT')} />
         <StatCard label="Finanziamento totale" value={formatEur(comune.total_funding)} />
         <StatCard
@@ -168,7 +191,7 @@ export default async function ComunePage({
       )}
 
       {/* Categories + Entities */}
-      <div className="grid grid-cols-2 gap-8 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-10">
         {topCategories.length > 0 && (
           <section>
             <h2 className="text-sm font-semibold text-gray-900 mb-3">Categorie principali</h2>

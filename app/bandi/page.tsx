@@ -17,28 +17,50 @@ const CATEGORY_OPTIONS = [
   'ue',
 ]
 
+const REGION_OPTIONS = [
+  'Abruzzo',
+  'Basilicata',
+  'Calabria',
+  'Campania',
+  'Emilia-Romagna',
+  'Friuli-Venezia Giulia',
+  'Lazio',
+  'Liguria',
+  'Lombardia',
+  'Marche',
+  'Molise',
+  'Piemonte',
+  'Puglia',
+  'Sardegna',
+  'Sicilia',
+  'Toscana',
+  'Trentino-Alto Adige',
+  'Umbria',
+  "Valle d'Aosta",
+  'Veneto',
+]
+
 export default async function BandiPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
   const filters = await searchParams
-  const q        = String(filters.q        ?? '')
-  const cat      = String(filters.cat      ?? '')
-  const pagina   = Math.max(1, parseInt(String(filters.pagina ?? '1'), 10))
-  const from     = (pagina - 1) * PAGE_SIZE
+  const q       = String(filters.q       ?? '')
+  const cat     = String(filters.cat     ?? '')
+  const regione = String(filters.regione ?? '')
+  const pagina  = Math.max(1, parseInt(String(filters.pagina ?? '1'), 10))
+  const from    = (pagina - 1) * PAGE_SIZE
 
-  const conditions = [`status = 'open'`]
-  if (q)   conditions.push(`(title ILIKE '%${q.replace(/'/g, "''")}%' OR description ILIKE '%${q.replace(/'/g, "''")}%')`)
-  if (cat) conditions.push(`'${cat.replace(/'/g, "''")}' = ANY(categories)`)
-
+  // When a region is selected, show calls for that region AND calls with no region restriction
   const [calls, [{ count }]] = await Promise.all([
     sql`
-      SELECT id, title, program, categories, deadline, budget_total, description
+      SELECT id, title, program, categories, regions, deadline, budget_total, description
       FROM funding_calls
       WHERE status = 'open'
-        ${q   ? sql`AND (title ILIKE ${'%' + q + '%'} OR description ILIKE ${'%' + q + '%'})` : sql``}
-        ${cat ? sql`AND ${cat} = ANY(categories)` : sql``}
+        ${q       ? sql`AND (title ILIKE ${'%' + q + '%'} OR description ILIKE ${'%' + q + '%'})` : sql``}
+        ${cat     ? sql`AND categories @> ARRAY[${cat}]` : sql``}
+        ${regione ? sql`AND regions @> ARRAY[${regione}]` : sql``}
       ORDER BY deadline ASC NULLS LAST, title ASC
       LIMIT ${PAGE_SIZE} OFFSET ${from}
     `,
@@ -46,8 +68,9 @@ export default async function BandiPage({
       SELECT COUNT(*) as count
       FROM funding_calls
       WHERE status = 'open'
-        ${q   ? sql`AND (title ILIKE ${'%' + q + '%'} OR description ILIKE ${'%' + q + '%'})` : sql``}
-        ${cat ? sql`AND ${cat} = ANY(categories)` : sql``}
+        ${q       ? sql`AND (title ILIKE ${'%' + q + '%'} OR description ILIKE ${'%' + q + '%'})` : sql``}
+        ${cat     ? sql`AND categories @> ARRAY[${cat}]` : sql``}
+        ${regione ? sql`AND regions @> ARRAY[${regione}]` : sql``}
     `,
   ])
 
@@ -55,7 +78,7 @@ export default async function BandiPage({
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   function buildUrl(overrides: Record<string, string | undefined>) {
-    const merged = { q, cat, pagina: String(pagina), ...overrides }
+    const merged = { q, cat, regione, pagina: String(pagina), ...overrides }
     const p = new URLSearchParams()
     for (const [k, v] of Object.entries(merged)) {
       if (v) p.set(k, v)
@@ -103,6 +126,19 @@ export default async function BandiPage({
             ))}
           </select>
         </div>
+        <div className="min-w-44">
+          <label className="block text-xs text-gray-500 mb-1">Regione</label>
+          <select
+            name="regione"
+            defaultValue={regione}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+          >
+            <option value="">Tutta Italia</option>
+            {REGION_OPTIONS.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        </div>
         <div className="flex gap-2">
           <button
             type="submit"
@@ -110,7 +146,7 @@ export default async function BandiPage({
           >
             Filtra
           </button>
-          {(q || cat) && (
+          {(q || cat || regione) && (
             <Link
               href="/bandi"
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
@@ -124,7 +160,7 @@ export default async function BandiPage({
       <p className="text-xs text-gray-400 mb-5">
         {total === 0
           ? 'Nessun bando trovato.'
-          : `${total} band${total === 1 ? 'o' : 'i'} aper${total === 1 ? 'to' : 'ti'}${q || cat ? ' con i filtri applicati' : ''}.`}
+          : `${total} band${total === 1 ? 'o' : 'i'} aper${total === 1 ? 'to' : 'ti'}${q || cat || regione ? ' con i filtri applicati' : ''}.`}
       </p>
 
       {/* Call list */}

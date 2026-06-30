@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
       description:  c.description,
       program:      c.program,
       categories:   c.categories,
+      regions:      c.regions,
       open_date:    c.open_date,
       deadline:     c.deadline,
       budget_total: c.budget_total,
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
         description     = EXCLUDED.description,
         program         = EXCLUDED.program,
         categories      = EXCLUDED.categories,
+        regions         = EXCLUDED.regions,
         open_date       = EXCLUDED.open_date,
         deadline        = EXCLUDED.deadline,
         budget_total    = EXCLUDED.budget_total,
@@ -46,7 +48,14 @@ export async function POST(req: NextRequest) {
         last_checked_at = EXCLUDED.last_checked_at
     `
 
-    return NextResponse.json({ ok: true, upserted: result.count })
+    // Auto-close any calls whose deadline has passed
+    const expired = await sql`
+      UPDATE funding_calls
+      SET status = 'closed', last_checked_at = NOW()
+      WHERE status = 'open' AND deadline IS NOT NULL AND deadline < CURRENT_DATE
+    `
+
+    return NextResponse.json({ ok: true, upserted: result.count, expired: expired.count })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[ingest/calls] error:', message)

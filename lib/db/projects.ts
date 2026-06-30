@@ -1,5 +1,6 @@
 import sql from '../db'
 import type { NormalizedProject } from '../ingest/normalize'
+import { COMUNI_ISTAT } from '../data/comuni-istat'
 
 export async function upsertProjects(
   records: NormalizedProject[],
@@ -79,30 +80,48 @@ export async function upsertProjects(
   return { inserted: 0, updated }
 }
 
-export async function rebuildComuniAggregates(): Promise<void> {
-  await sql`
-    INSERT INTO comuni (nome, province, region, total_projects, total_funding, avg_project_value, last_normalized_refresh, last_watchdog_check)
+export async function rebuildComuniAggregates(batchSize = 500): Promise<void> {
+  // Aggregate counts + funding only — province/region come from ISTAT reference, not from
+  // the territory CSV in the projects table (which is unreliable for multi-territory projects).
+  const rows = await sql<{ nome: string; total_projects: number; total_funding: string }[]>`
     SELECT
-      UPPER(TRIM(comune))                                                AS nome,
-      MAX(province)                                                      AS province,
-      MAX(region)                                                        AS region,
-      COUNT(*)::int                                                      AS total_projects,
-      COALESCE(SUM(amount_total), 0)                                     AS total_funding,
-      CASE WHEN COUNT(*) > 0
-           THEN COALESCE(SUM(amount_total), 0) / COUNT(*)
-           ELSE 0 END                                                    AS avg_project_value,
-      NOW()                                                              AS last_normalized_refresh,
-      NOW()                                                              AS last_watchdog_check
+      UPPER(TRIM(comune))            AS nome,
+      COUNT(*)::int                  AS total_projects,
+      COALESCE(SUM(amount_total), 0) AS total_funding
     FROM projects
     WHERE comune IS NOT NULL AND TRIM(comune) != ''
     GROUP BY UPPER(TRIM(comune))
-    ON CONFLICT (nome) DO UPDATE SET
-      province                = EXCLUDED.province,
-      region                  = EXCLUDED.region,
-      total_projects          = EXCLUDED.total_projects,
-      total_funding           = EXCLUDED.total_funding,
-      avg_project_value       = EXCLUDED.avg_project_value,
-      last_normalized_refresh = EXCLUDED.last_normalized_refresh,
-      last_watchdog_check     = EXCLUDED.last_watchdog_check
   `
+
+  const now = new Date().toISOString()
+
+  const enriched = rows.map((r) => {
+    const ref = COMUNI_ISTAT[r.nome]
+    const total = Number(r.total_funding)
+    return {
+      nome:                    r.nome,
+      province:                ref?.province ?? null,
+      region:                  ref?.region   ?? null,
+      total_projects:          r.total_projects,
+      total_funding:           total,
+      avg_project_value:       r.total_projects > 0 ? total / r.total_projects : 0,
+      last_normalized_refresh: now,
+      last_watchdog_check:     now,
+    }
+  })
+
+  for (let i = 0; i < enriched.length; i += batchSize) {
+    const batch = enriched.slice(i, i + batchSize)
+    await sql`
+      INSERT INTO comuni ${sql(batch)}
+      ON CONFLICT (nome) DO UPDATE SET
+        province                = EXCLUDED.province,
+        region                  = EXCLUDED.region,
+        total_projects          = EXCLUDED.total_projects,
+        total_funding           = EXCLUDED.total_funding,
+        avg_project_value       = EXCLUDED.avg_project_value,
+        last_normalized_refresh = EXCLUDED.last_normalized_refresh,
+        last_watchdog_check     = EXCLUDED.last_watchdog_check
+    `
+  }
 }
