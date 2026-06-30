@@ -91,6 +91,14 @@ export function normalizeOpenPNRRRow(row: Record<string, string>): NormalizedPro
 
   if (!projectId || !title) return null
 
+  // Divide amounts proportionally when a project spans multiple comuni so that
+  // each comune receives its fair share rather than the full national amount.
+  const comuniCount = Math.max(1, parseInt(row['_comuni_count'] ?? '1', 10))
+  const divideAmount = (raw: string | undefined): number | null => {
+    const n = parseAmount(raw)
+    return n !== null ? Math.round(n / comuniCount) : null
+  }
+
   const normalized: NormalizedProject = {
     project_id:           projectId,
     source:               'openpnrr',
@@ -98,8 +106,8 @@ export function normalizeOpenPNRRRow(row: Record<string, string>): NormalizedPro
     cup_code:             pick(row, 'cup', 'CUP', 'codice_cup') ?? null,
     title,
     description:          pick(row, 'descrizione', 'DESCRIZIONE', 'OGGETTO', 'oggetto') ?? null,
-    amount_total:         parseAmount(pick(row, 'finanziamento_totale', 'IMPORTO_TOTALE', 'importo_totale', 'finanziamento', 'IMPORTO', 'importo')),
-    amount_public:        parseAmount(pick(row, 'finanziamento_totale_pubblico', 'IMPORTO_PUBBLICO', 'importo_pubblico', 'QUOTA_PUBBLICA', 'quota_pubblica')),
+    amount_total:         divideAmount(pick(row, 'finanziamento_totale', 'IMPORTO_TOTALE', 'importo_totale', 'finanziamento', 'IMPORTO', 'importo')),
+    amount_public:        divideAmount(pick(row, 'finanziamento_totale_pubblico', 'IMPORTO_PUBBLICO', 'importo_pubblico', 'QUOTA_PUBBLICA', 'quota_pubblica')),
     mission:              pick(row, 'codice_misura', 'MISSIONE', 'missione', 'MISSION', 'mission') ?? null,
     component:            pick(row, 'COMPONENTE', 'componente', 'COMPONENT', 'component') ?? null,
     measure:              pick(row, 'codice_misura', 'MISURA', 'misura', 'MEASURE', 'measure', 'INVESTIMENTO', 'investimento') ?? null,

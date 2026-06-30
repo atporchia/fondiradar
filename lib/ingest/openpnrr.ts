@@ -34,7 +34,12 @@ async function fetchCsv(url: string): Promise<{ rows: Record<string, string>[]; 
 }
 
 // tipologia codes in progetti_territori: C=Comune, P=Provincia, R=Regione, N=Nazione
-type TerritoryMap = Map<string, { comune: string | null; province: string | null; region: string | null }>
+type TerritoryMap = Map<string, {
+  comune: string | null
+  province: string | null
+  region: string | null
+  comuniCount: number  // total C-type territories for this project
+}>
 
 function buildTerritoryMap(rows: Record<string, string>[]): TerritoryMap {
   const map: TerritoryMap = new Map()
@@ -47,11 +52,16 @@ function buildTerritoryMap(rows: Record<string, string>[]): TerritoryMap {
     const nome = row['denominazione']?.trim() || null
     if (!nome) continue
 
-    const entry = map.get(id) ?? { comune: null, province: null, region: null }
+    const entry = map.get(id) ?? { comune: null, province: null, region: null, comuniCount: 0 }
 
-    if (tipo === 'C' && !entry.comune) entry.comune = nome
-    else if (tipo === 'P' && !entry.province) entry.province = nome
-    else if (tipo === 'R' && !entry.region) entry.region = nome
+    if (tipo === 'C') {
+      entry.comuniCount++
+      if (!entry.comune) entry.comune = nome
+    } else if (tipo === 'P' && !entry.province) {
+      entry.province = nome
+    } else if (tipo === 'R' && !entry.region) {
+      entry.region = nome
+    }
 
     map.set(id, entry)
   }
@@ -81,12 +91,15 @@ export async function fetchOpenPNRR(): Promise<FetchResult> {
     const id = row['progetto_id']
     const territory = id ? (territoryMap.get(id) ?? null) : null
 
-    // Inject territory fields so the normalizer can pick them up
+    // Inject territory fields so the normalizer can pick them up.
+    // _comuni_count lets the normalizer divide amounts proportionally for
+    // multi-comune projects, avoiding full attribution to a single comune.
     const enriched = {
       ...row,
-      _comune:   territory?.comune   ?? '',
-      _province: territory?.province ?? '',
-      _region:   territory?.region   ?? '',
+      _comune:        territory?.comune        ?? '',
+      _province:      territory?.province      ?? '',
+      _region:        territory?.region        ?? '',
+      _comuni_count:  String(territory?.comuniCount ?? 1),
     }
 
     const normalized = normalizeOpenPNRRRow(enriched)

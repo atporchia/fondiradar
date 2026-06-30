@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sql from '@/lib/db'
 import { fetchCalls } from '@/lib/ingest/calls'
-import { generateCallExplanation } from '@/lib/ingest/ai'
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET
@@ -56,41 +55,7 @@ export async function POST(req: NextRequest) {
       WHERE status = 'open' AND deadline IS NOT NULL AND deadline < CURRENT_DATE
     `
 
-    // Generate AI explanations for any open calls that don't have one yet
-    let aiGenerated = 0
-    let aiFailed = 0
-    if (process.env.GROQ_API_KEY) {
-      const pending = await sql`
-        SELECT id, title, description, program, budget_total, deadline, categories
-        FROM funding_calls
-        WHERE status = 'open' AND ai_explanation IS NULL
-      `
-      for (const call of pending) {
-        try {
-          const ai = await generateCallExplanation({
-            title: call.title,
-            description: call.description,
-            program: call.program,
-            budget_total: call.budget_total ? Number(call.budget_total) : null,
-            deadline: call.deadline,
-            categories: call.categories,
-          })
-          await sql`
-            UPDATE funding_calls SET
-              ai_explanation  = ${ai.explanation},
-              ai_tips         = ${ai.tips},
-              ai_generated_at = NOW()
-            WHERE id = ${call.id}
-          `
-          aiGenerated++
-        } catch (err) {
-          console.error('[AI] call explanation failed', call.id, err)
-          aiFailed++
-        }
-      }
-    }
-
-    return NextResponse.json({ ok: true, upserted: result.count, expired: expired.count, aiGenerated, aiFailed })
+    return NextResponse.json({ ok: true, upserted: result.count, expired: expired.count })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[ingest/calls] error:', message)
