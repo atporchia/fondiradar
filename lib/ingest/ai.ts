@@ -67,6 +67,51 @@ Rispondi SOLO con questo JSON (nessun testo aggiuntivo, nessun markdown):
   }
 }
 
+export interface CallAI {
+  explanation: string
+  tips: string[]
+}
+
+export async function generateCallExplanation(call: {
+  title: string
+  description?: string | null
+  program?: string | null
+  budget_total?: number | null
+  deadline?: string | null
+  categories?: string[] | null
+}): Promise<CallAI> {
+  const prompt = `Sei un assistente per i finanziamenti pubblici italiani ed europei. Spiega in italiano semplice (come se stessi parlando a un cittadino o piccolo imprenditore senza esperienza burocratica) il seguente bando o incentivo.
+
+Titolo: ${call.title}
+Programma: ${call.program || 'non disponibile'}
+Descrizione: ${call.description || 'non disponibile'}
+Budget totale: ${call.budget_total ? `€${call.budget_total.toLocaleString('it-IT')}` : 'non specificato'}
+Scadenza: ${call.deadline || 'aperto senza scadenza fissa'}
+Categorie: ${call.categories?.join(', ') || 'non specificate'}
+
+Rispondi SOLO con questo JSON (nessun testo aggiuntivo, nessun markdown):
+{
+  "explanation": "Spiegazione in italiano semplice: cosa finanzia questo bando, chi può fare domanda (persona fisica, impresa, startup, agricoltore...), a cosa serve il contributo. Max 150 parole.",
+  "tips": ["Primo passo concreto per iniziare a candidarsi", "Secondo consiglio pratico", "Terzo consiglio utile (es. documenti necessari, scadenze da tenere d'occhio, enti a cui rivolgersi)"]
+}`
+
+  const result = await getModel().generateContent(prompt)
+  const text = result.response.text().trim()
+
+  const jsonText = text.startsWith('```')
+    ? text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+    : text
+
+  const parsed = JSON.parse(jsonText) as CallAI
+
+  return {
+    explanation: String(parsed.explanation ?? ''),
+    tips: Array.isArray(parsed.tips)
+      ? parsed.tips.slice(0, 3).map(String)
+      : [],
+  }
+}
+
 export async function generateComuneSummary(comune: {
   nome: string
   province?: string | null
