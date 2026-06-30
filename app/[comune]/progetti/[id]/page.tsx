@@ -27,7 +27,7 @@ export default async function ProgettoDetailPage({
   if (!project) notFound()
 
   // Lazy AI generation: generate on first visit, cache in DB forever
-  if (!project.ai_explanation && process.env.GOOGLE_AI_API_KEY) {
+  if (!project.ai_explanation && process.env.GROQ_API_KEY) {
     try {
       const ai = await generateProjectExplanation(project as Parameters<typeof generateProjectExplanation>[0])
       await sql`

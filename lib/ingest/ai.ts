@@ -1,12 +1,12 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import Groq from 'groq-sdk'
 import { formatEur } from '../format'
 
-const MODEL = 'gemini-2.0-flash'
+const MODEL = 'llama-3.3-70b-versatile'
 
-function getModel() {
-  const apiKey = process.env.GOOGLE_AI_API_KEY
-  if (!apiKey) throw new Error('GOOGLE_AI_API_KEY is not set')
-  return new GoogleGenerativeAI(apiKey).getGenerativeModel({ model: MODEL })
+function getClient() {
+  const apiKey = process.env.GROQ_API_KEY
+  if (!apiKey) throw new Error('GROQ_API_KEY is not set')
+  return new Groq({ apiKey })
 }
 
 export interface ProjectAI {
@@ -44,20 +44,19 @@ Stato: ${project.status || 'non disponibile'}
 Categoria/Missione: ${project.category || project.mission || 'non disponibile'}
 Comune: ${project.comune || 'non disponibile'}${signalNote}
 
-Rispondi SOLO con questo JSON (nessun testo aggiuntivo, nessun markdown):
+Rispondi SOLO con questo JSON:
 {
   "explanation": "Descrizione in italiano semplice di cosa fa questo progetto, a chi serve e perché è importante per i cittadini. Max 150 parole.",
   "questions": ["Una domanda utile che un cittadino potrebbe porre al Comune", "seconda domanda utile", "terza domanda utile"]
 }`
 
-  const result = await getModel().generateContent(prompt)
-  const text = result.response.text().trim()
+  const res = await getClient().chat.completions.create({
+    model: MODEL,
+    messages: [{ role: 'user', content: prompt }],
+    response_format: { type: 'json_object' },
+  })
 
-  const jsonText = text.startsWith('```')
-    ? text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-    : text
-
-  const parsed = JSON.parse(jsonText) as ProjectAI
+  const parsed = JSON.parse(res.choices[0].message.content ?? '{}') as ProjectAI
 
   return {
     explanation: String(parsed.explanation ?? ''),
@@ -89,20 +88,19 @@ Budget totale: ${call.budget_total ? `€${call.budget_total.toLocaleString('it-
 Scadenza: ${call.deadline || 'aperto senza scadenza fissa'}
 Categorie: ${call.categories?.join(', ') || 'non specificate'}
 
-Rispondi SOLO con questo JSON (nessun testo aggiuntivo, nessun markdown):
+Rispondi SOLO con questo JSON:
 {
   "explanation": "Spiegazione in italiano semplice: cosa finanzia questo bando, chi può fare domanda (persona fisica, impresa, startup, agricoltore...), a cosa serve il contributo. Max 150 parole.",
   "tips": ["Primo passo concreto per iniziare a candidarsi", "Secondo consiglio pratico", "Terzo consiglio utile (es. documenti necessari, scadenze da tenere d'occhio, enti a cui rivolgersi)"]
 }`
 
-  const result = await getModel().generateContent(prompt)
-  const text = result.response.text().trim()
+  const res = await getClient().chat.completions.create({
+    model: MODEL,
+    messages: [{ role: 'user', content: prompt }],
+    response_format: { type: 'json_object' },
+  })
 
-  const jsonText = text.startsWith('```')
-    ? text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-    : text
-
-  const parsed = JSON.parse(jsonText) as CallAI
+  const parsed = JSON.parse(res.choices[0].message.content ?? '{}') as CallAI
 
   return {
     explanation: String(parsed.explanation ?? ''),
@@ -129,19 +127,18 @@ Totale progetti PNRR: ${comune.total_projects}
 Finanziamento totale: ${formatEur(comune.total_funding)}
 Valore medio per progetto: ${formatEur(comune.avg_project_value)}
 
-Rispondi SOLO con questo JSON (nessun testo aggiuntivo, nessun markdown):
+Rispondi SOLO con questo JSON:
 {
   "summary": "Riassunto in italiano semplice (max 120 parole) della situazione PNRR nel comune. Spiega cosa significano questi numeri per i cittadini locali, quali opportunità di sviluppo rappresentano e cosa possono aspettarsi."
 }`
 
-  const result = await getModel().generateContent(prompt)
-  const text = result.response.text().trim()
+  const res = await getClient().chat.completions.create({
+    model: MODEL,
+    messages: [{ role: 'user', content: prompt }],
+    response_format: { type: 'json_object' },
+  })
 
-  const jsonText = text.startsWith('```')
-    ? text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-    : text
-
-  const parsed = JSON.parse(jsonText) as ComuneAI
+  const parsed = JSON.parse(res.choices[0].message.content ?? '{}') as ComuneAI
 
   return {
     summary: String(parsed.summary ?? ''),

@@ -32,7 +32,7 @@ export default async function ComunePage({
 
   if (!comune) notFound()
 
-  if (!comune.ai_summary && process.env.GOOGLE_AI_API_KEY) {
+  if (!comune.ai_summary && process.env.GROQ_API_KEY) {
     try {
       const ai = await generateComuneSummary({
         nome: comune.nome,
