@@ -55,7 +55,7 @@ export default async function BandiPage({
   // When a region is selected, show calls for that region AND calls with no region restriction
   const [calls, [{ count }]] = await Promise.all([
     sql`
-      SELECT id, title, program, categories, regions, deadline, budget_total, description, amount_min, amount_max
+      SELECT id, title, program, categories, regions, deadline, budget_total, description, ai_explanation, amount_min, amount_max
       FROM funding_calls
       WHERE status = 'open'
         ${q       ? sql`AND (title ILIKE ${'%' + q + '%'} OR description ILIKE ${'%' + q + '%'})` : sql``}
@@ -181,8 +181,10 @@ export default async function BandiPage({
                     </span>
                   )}
                   <p className="text-sm font-semibold text-gray-900 leading-snug">{c.title}</p>
-                  {c.description && (
-                    <p className="mt-1 text-xs text-gray-500 line-clamp-2">{c.description}</p>
+                  {(c.ai_explanation || c.description) && (
+                    <p className="mt-1 text-xs text-gray-500 line-clamp-2">
+                      {c.ai_explanation || c.description}
+                    </p>
                   )}
                   {/* Categories */}
                   {c.categories && c.categories.length > 0 && (
@@ -205,12 +207,13 @@ export default async function BandiPage({
                     <span className="text-xs text-gray-400">Aperto</span>
                   )}
                   {(c.amount_min || c.amount_max) && (
-                    <p className="mt-1 text-xs font-medium text-emerald-600">
+                    <p className="mt-1 text-xs font-semibold text-emerald-700">
                       {c.amount_min && c.amount_max
                         ? `${formatEur(c.amount_min)} – ${formatEur(c.amount_max)}`
                         : c.amount_max
                           ? `Fino a ${formatEur(c.amount_max)}`
                           : `Da ${formatEur(c.amount_min)}`}
+                      <span className="block font-normal text-gray-400">per candidato</span>
                     </p>
                   )}
                   {c.budget_total && (
