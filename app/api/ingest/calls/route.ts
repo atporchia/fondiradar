@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       budget_total: c.budget_total,
       status:       c.status,
       url:          c.url,
+      amount_max:   c.amount_max ?? null,
       last_checked_at: new Date().toISOString(),
     }))
 
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
         budget_total    = EXCLUDED.budget_total,
         status          = EXCLUDED.status,
         url             = EXCLUDED.url,
+        amount_max      = COALESCE(EXCLUDED.amount_max, funding_calls.amount_max),
         last_checked_at = EXCLUDED.last_checked_at
     `
 

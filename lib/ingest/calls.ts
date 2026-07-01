@@ -11,6 +11,9 @@ export interface FundingCall {
   budget_total: number | null
   status: 'open' | 'closed' | 'forthcoming'
   url: string | null
+  // Per-applicant amount, only set when the description states a concrete
+  // figure explicitly — never estimated/guessed.
+  amount_max?: number | null
 }
 
 // Curated seed of real Italian and EU funding calls open to private citizens,
@@ -77,6 +80,7 @@ const SEED_CALLS: FundingCall[] = [
     budget_total: null,
     status: 'open',
     url: 'https://www.reterurale.it/PSN',
+    amount_max: 75_000,
   },
 
   // ── Imprenditoria e PMI — national ────────────────────────────────────────
@@ -94,6 +98,7 @@ const SEED_CALLS: FundingCall[] = [
     budget_total: null,
     status: 'open',
     url: 'https://www.invitalia.it/cosa-facciamo/rafforziamo-le-startup/smart-start-italia',
+    amount_max: 1_500_000,
   },
   {
     external_id: 'mimit-nuova-sabatini-2024',
@@ -124,6 +129,7 @@ const SEED_CALLS: FundingCall[] = [
     budget_total: null,
     status: 'open',
     url: 'https://www.invitalia.it/cosa-facciamo/sosteniamo-limprenditoria-giovanile/resto-al-sud',
+    amount_max: 75_000,
   },
   {
     external_id: 'mimit-brevetti-plus-2024',
@@ -139,6 +145,7 @@ const SEED_CALLS: FundingCall[] = [
     budget_total: null,
     status: 'open',
     url: 'https://www.mimit.gov.it/it/incentivi/brevetti',
+    amount_max: 140_000,
   },
 
   // ── Transizione digitale e green — national ───────────────────────────────
@@ -220,6 +227,7 @@ const SEED_CALLS: FundingCall[] = [
     budget_total: null,
     status: 'open',
     url: 'https://eic.ec.europa.eu/eic-funding-opportunities/eic-accelerator_en',
+    amount_max: 2_500_000,
   },
 
   // ── Programmi regionali ───────────────────────────────────────────────────
@@ -402,6 +410,7 @@ const SEED_CALLS: FundingCall[] = [
     budget_total: null,
     status: 'open',
     url: 'https://www.regione.abruzzo.it/content/psr-2023-2027',
+    amount_max: 70_000,
   },
   {
     external_id: 'basilicata-feasr-biologico-2024',

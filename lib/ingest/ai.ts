@@ -1,12 +1,20 @@
-import Groq from 'groq-sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { formatEur } from '../format'
 
-const MODEL = 'llama-3.3-70b-versatile'
+const MODEL = 'gemini-2.5-flash'
 
-function getClient() {
-  const apiKey = process.env.GROQ_API_KEY
-  if (!apiKey) throw new Error('GROQ_API_KEY is not set')
-  return new Groq({ apiKey })
+function getModel() {
+  const apiKey = process.env.GOOGLE_AI_API_KEY
+  if (!apiKey) throw new Error('GOOGLE_AI_API_KEY is not set')
+  return new GoogleGenerativeAI(apiKey).getGenerativeModel({
+    model: MODEL,
+    generationConfig: { responseMimeType: 'application/json' },
+  })
+}
+
+async function generateJson(prompt: string): Promise<Record<string, unknown>> {
+  const result = await getModel().generateContent(prompt)
+  return JSON.parse(result.response.text() || '{}') as Record<string, unknown>
 }
 
 export interface ProjectAI {
@@ -50,13 +58,7 @@ Rispondi SOLO con questo JSON:
   "questions": ["Una domanda utile che un cittadino potrebbe porre al Comune", "seconda domanda utile", "terza domanda utile"]
 }`
 
-  const res = await getClient().chat.completions.create({
-    model: MODEL,
-    messages: [{ role: 'user', content: prompt }],
-    response_format: { type: 'json_object' },
-  })
-
-  const parsed = JSON.parse(res.choices[0].message.content ?? '{}') as ProjectAI
+  const parsed = await generateJson(prompt)
 
   return {
     explanation: String(parsed.explanation ?? ''),
@@ -100,13 +102,7 @@ Rispondi SOLO con questo JSON:
   "eligibility": ["Criterio di ammissibilità 1 (es. 'Under 41 anni')", "Criterio 2 (es. 'Imprese con sede in una delle regioni del Sud Italia')", "Criterio 3 (es. 'Startup costituite da meno di 5 anni')"]
 }`
 
-  const res = await getClient().chat.completions.create({
-    model: MODEL,
-    messages: [{ role: 'user', content: prompt }],
-    response_format: { type: 'json_object' },
-  })
-
-  const parsed = JSON.parse(res.choices[0].message.content ?? '{}') as Record<string, unknown>
+  const parsed = await generateJson(prompt)
 
   const toAmount = (v: unknown): number | null => {
     const n = typeof v === 'number' ? v : parseFloat(String(v))
@@ -148,13 +144,7 @@ Rispondi SOLO con questo JSON:
   "summary": "Riassunto in italiano semplice (max 120 parole) della situazione PNRR nel comune. Spiega cosa significano questi numeri per i cittadini locali, quali opportunità di sviluppo rappresentano e cosa possono aspettarsi."
 }`
 
-  const res = await getClient().chat.completions.create({
-    model: MODEL,
-    messages: [{ role: 'user', content: prompt }],
-    response_format: { type: 'json_object' },
-  })
-
-  const parsed = JSON.parse(res.choices[0].message.content ?? '{}') as ComuneAI
+  const parsed = await generateJson(prompt)
 
   return {
     summary: String(parsed.summary ?? ''),
