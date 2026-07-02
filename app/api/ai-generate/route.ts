@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const version = 'groq-v1'
+  const version = 'gemini-2.5-flash-v1'
   const results = {
     projects: { processed: 0, failed: 0 },
     comuni:   { processed: 0, failed: 0 },
